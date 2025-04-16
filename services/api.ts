@@ -1,4 +1,4 @@
-// src/services/api.ts
+// /services/api.ts
 import axios from 'axios';
 
 const API_URL = 'http://localhost:3000';
@@ -9,6 +9,7 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
+  withCredentials: true, // 👈 Send cookies with every request
 });
 
 // Add interceptor to include auth token in requests
@@ -58,6 +59,9 @@ export const authService = {
   logout() {
     localStorage.removeItem('accessToken');
     localStorage.removeItem('userInfo');
+  
+    // ❌ Clear the token from cookies too
+    document.cookie = 'accessToken=; path=/; max-age=0';
   },
 
   getCurrentUser() {
@@ -68,6 +72,9 @@ export const authService = {
   setAuthData(accessToken: string, user: any) {
     localStorage.setItem('accessToken', accessToken);
     localStorage.setItem('userInfo', JSON.stringify(user));
+  
+    // ✅ Store access token in cookies (expires in 7 days)
+    document.cookie = `accessToken=${accessToken}; path=/; max-age=${60 * 60 * 24 * 7}`;
   }
 };
 

@@ -1,4 +1,4 @@
-// src/contexts/AuthContext.tsx
+// /contexts/AuthContext.tsx
 'use client';
 
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
@@ -54,7 +54,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const data = await authService.buyerLogin(email, password);
       authService.setAuthData(data.accessToken, data.user);
       setUser(data.user);
-      router.push('/dashboard');
+      router.push('/dashboard'); // Ensure this is executed
     } catch (err: any) {
       setError(err.response?.data?.message || 'Login failed');
       console.error('Login error:', err);
@@ -70,7 +70,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const data = await authService.dealerLogin(email, password);
       authService.setAuthData(data.accessToken, data.user);
       setUser(data.user);
-      router.push('/dashboard');
+      router.push('/dashboard'); // Ensure this is executed
     } catch (err: any) {
       setError(err.response?.data?.message || 'Login failed');
       console.error('Login error:', err);
@@ -89,8 +89,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setLoading(true);
     setError(null);
     try {
-      await authService.registerBuyer(buyerData);
-      router.push('/login?type=buyer');
+      const data = await authService.registerBuyer(buyerData);
+      authService.setAuthData(data.accessToken, data.user); // Save token and user data
+      setUser(data.user);
+      router.push('/dashboard'); // Redirect to dashboard
     } catch (err: any) {
       setError(err.response?.data?.message || 'Registration failed');
       console.error('Registration error:', err);
@@ -103,8 +105,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setLoading(true);
     setError(null);
     try {
-      await authService.registerDealer(dealerData);
-      router.push('/login?type=dealer');
+      const data = await authService.registerDealer(dealerData);
+      authService.setAuthData(data.accessToken, data.user); // Save token and user data
+      setUser(data.user);
+      router.push('/dashboard'); // Redirect to dashboard
     } catch (err: any) {
       setError(err.response?.data?.message || 'Registration failed');
       console.error('Registration error:', err);
