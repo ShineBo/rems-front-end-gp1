@@ -9,7 +9,7 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
-  withCredentials: true, // 👈 Send cookies with every request
+  withCredentials: true, // Send cookies with every request
 });
 
 // Add interceptor to include auth token in requests
@@ -60,7 +60,7 @@ export const authService = {
     localStorage.removeItem('accessToken');
     localStorage.removeItem('userInfo');
   
-    // ❌ Clear the token from cookies too
+    // Clear the token from cookies too
     document.cookie = 'accessToken=; path=/; max-age=0';
   },
 
@@ -73,8 +73,50 @@ export const authService = {
     localStorage.setItem('accessToken', accessToken);
     localStorage.setItem('userInfo', JSON.stringify(user));
   
-    // ✅ Store access token in cookies (expires in 7 days)
+    // Store access token in cookies (expires in 7 days)
     document.cookie = `accessToken=${accessToken}; path=/; max-age=${60 * 60 * 24 * 7}`;
+  }
+};
+
+// User profile services
+export const profileService = {
+  // Get buyer profile by ID
+  async getBuyerProfile(buyerId: number) {
+    const response = await api.get(`/buyer/${buyerId}`);
+    return response.data;
+  },
+
+  // Get dealer profile by ID
+  async getDealerProfile(dealerId: number) {
+    const response = await api.get(`/dealer/${dealerId}`);
+    return response.data;
+  },
+
+  // Update buyer profile
+  async updateBuyerProfile(buyerId: number, profileData: any) {
+    const response = await api.patch(`/buyer/${buyerId}`, profileData);
+    return response.data;
+  },
+
+  // Update dealer profile
+  async updateDealerProfile(dealerId: number, profileData: any) {
+    const response = await api.patch(`/dealer/${dealerId}`, profileData);
+    return response.data;
+  },
+
+  // Upload profile photo (if you want to handle this separately)
+  async uploadProfilePhoto(userId: number, role: 'buyer' | 'dealer', photoFile: File) {
+    const formData = new FormData();
+    formData.append('profilePhoto', photoFile);
+    
+    const endpoint = role === 'buyer' ? `/buyer/${userId}/photo` : `/dealer/${userId}/photo`;
+    const response = await api.post(endpoint, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    
+    return response.data;
   }
 };
 

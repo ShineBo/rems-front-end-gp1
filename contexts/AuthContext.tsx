@@ -21,6 +21,7 @@ interface AuthContextType {
   logout: () => void;
   registerBuyer: (buyerData: any) => Promise<void>;
   registerDealer: (dealerData: any) => Promise<void>;
+  updateUserInfo: (updatedUser: User) => void; // New function
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -117,6 +118,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  // New function to update user information
+  const updateUserInfo = (updatedUser: User) => {
+    setUser(updatedUser);
+    
+    // Also update in localStorage to persist changes
+    const currentToken = localStorage.getItem('accessToken');
+    if (currentToken) {
+      authService.setAuthData(currentToken, updatedUser);
+    }
+  };
+
   const value = {
     user,
     loading,
@@ -125,7 +137,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     dealerLogin,
     logout,
     registerBuyer,
-    registerDealer
+    registerDealer,
+    updateUserInfo // Added to context value
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
