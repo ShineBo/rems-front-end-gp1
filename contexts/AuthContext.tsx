@@ -1,4 +1,3 @@
-// /contexts/AuthContext.tsx
 'use client';
 
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
@@ -21,7 +20,7 @@ interface AuthContextType {
   logout: () => void;
   registerBuyer: (buyerData: any) => Promise<void>;
   registerDealer: (dealerData: any) => Promise<void>;
-  updateUserInfo: (updatedUser: User) => void; // New function
+  updateUserInfo: (updatedUser: User) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -33,18 +32,46 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const router = useRouter();
 
   useEffect(() => {
-    // Check if user is logged in
-    const checkAuth = () => {
+    const checkAuth = async () => {
       try {
-        const currentUser = authService.getCurrentUser();
-        setUser(currentUser);
+        // Check if there's a token in local storage from previous versions
+        const legacyToken = localStorage.getItem('accessToken');
+        const legacyUser = localStorage.getItem('userInfo');
+        
+        // If legacy token exists but no cookie, migrate to cookies
+        if (legacyToken && !getCookie('accessToken')) {
+          console.log('Migrating from localStorage to cookies');
+          // Set cookies from localStorage data
+          if (legacyUser) {
+            const userObj = JSON.parse(legacyUser);
+            authService.setAuthData(legacyToken, userObj);
+            setUser(userObj);
+            
+            // Clean up localStorage
+            localStorage.removeItem('accessToken');
+            localStorage.removeItem('userInfo');
+          }
+        } else {
+          // Use cookie-based auth
+          const currentUser = authService.getCurrentUser();
+          if (currentUser) {
+            setUser(currentUser);
+          } else {
+            // If no user in cookies, clear any potential corrupted state
+            document.cookie = 'accessToken=; path=/; max-age=0';
+            document.cookie = 'userInfo=; path=/; max-age=0';
+          }
+        }
       } catch (error) {
         console.error('Failed to get current user:', error);
+        // Clear potentially corrupted cookies
+        document.cookie = 'accessToken=; path=/; max-age=0';
+        document.cookie = 'userInfo=; path=/; max-age=0';
       } finally {
         setLoading(false);
       }
     };
-
+    
     checkAuth();
   }, []);
 
@@ -55,7 +82,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const data = await authService.buyerLogin(email, password);
       authService.setAuthData(data.accessToken, data.user);
       setUser(data.user);
-      router.push('/dashboard'); // Ensure this is executed
+      router.push('/dashboard');
     } catch (err: any) {
       setError(err.response?.data?.message || 'Login failed');
       console.error('Login error:', err);
@@ -71,7 +98,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const data = await authService.dealerLogin(email, password);
       authService.setAuthData(data.accessToken, data.user);
       setUser(data.user);
-      router.push('/dashboard'); // Ensure this is executed
+      router.push('/dashboard');
     } catch (err: any) {
       setError(err.response?.data?.message || 'Login failed');
       console.error('Login error:', err);
@@ -81,7 +108,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const logout = () => {
+    // Clear cookies
     authService.logout();
+    // Clear any localStorage remnants
+    localStorage.removeItem('accessToken');
+    localStorage.removeItem('userInfo');
     setUser(null);
     router.push('/');
   };
@@ -91,9 +122,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setError(null);
     try {
       const data = await authService.registerBuyer(buyerData);
-      authService.setAuthData(data.accessToken, data.user); // Save token and user data
+      authService.setAuthData(data.accessToken, data.user);
       setUser(data.user);
-      router.push('/dashboard'); // Redirect to dashboard
+      router.push('/dashboard');
     } catch (err: any) {
       setError(err.response?.data?.message || 'Registration failed');
       console.error('Registration error:', err);
@@ -107,9 +138,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setError(null);
     try {
       const data = await authService.registerDealer(dealerData);
-      authService.setAuthData(data.accessToken, data.user); // Save token and user data
+      authService.setAuthData(data.accessToken, data.user);
       setUser(data.user);
-      router.push('/dashboard'); // Redirect to dashboard
+      router.push('/dashboard');
     } catch (err: any) {
       setError(err.response?.data?.message || 'Registration failed');
       console.error('Registration error:', err);
@@ -118,14 +149,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  // New function to update user information
   const updateUserInfo = (updatedUser: User) => {
     setUser(updatedUser);
-    
-    // Also update in localStorage to persist changes
-    const currentToken = localStorage.getItem('accessToken');
-    if (currentToken) {
-      authService.setAuthData(currentToken, updatedUser);
+
+    const accessToken = getCookie('accessToken');
+    if (accessToken) {
+      authService.setAuthData(accessToken, updatedUser);
     }
   };
 
@@ -138,11 +167,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     logout,
     registerBuyer,
     registerDealer,
-    updateUserInfo // Added to context value
+    updateUserInfo,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
+
+// Helper function to get cookie by name
+function getCookie(name: string): string | null {
+  const match = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'));
+  return match ? match[2] : null;
+}
 
 export const useAuth = () => {
   const context = useContext(AuthContext);

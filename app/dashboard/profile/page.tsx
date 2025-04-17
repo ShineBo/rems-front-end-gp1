@@ -1,64 +1,76 @@
 // /app/dashboard/profile/page.tsx
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
-import { useRouter } from 'next/navigation';
-import api from '@/services/api';
-import { toast } from 'react-hot-toast'; // Make sure to install react-hot-toast if not already installed
+import { useState, useEffect } from "react";
+import { useAuth } from "@/contexts/AuthContext";
+import { useRouter } from "next/navigation";
+import api from "@/services/api";
+import { toast } from "react-hot-toast";
 
 export default function Profile() {
   const { user, loading, updateUserInfo } = useAuth();
   const router = useRouter();
   const [isEditing, setIsEditing] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [pageLoading, setPageLoading] = useState(true);
   const [profileData, setProfileData] = useState({
-    name: '',
-    email: '',
-    phoneNumber: '',
-    businessName: '',
-    licenseNumber: '',
+    name: "",
+    email: "",
+    phoneNumber: "",
+    businessName: "",
+    licenseNumber: "",
     profilePhoto: null as string | null,
   });
   const [initialData, setInitialData] = useState({} as any);
 
   useEffect(() => {
-    // Redirect if not logged in
-    if (!loading && !user) {
-      router.push('/login');
-      return;
-    }
+    // First check if auth is done loading
+    if (!loading) {
+      // If not logged in, redirect
+      if (!user) {
+        router.push("/login");
+        return;
+      }
 
-    // Fetch user details when component mounts
-    if (user) {
-      fetchUserDetails();
+      // If we have a user, fetch their details
+      if (user) {
+        fetchUserDetails();
+      }
     }
   }, [user, loading, router]);
 
   const fetchUserDetails = async () => {
+    setPageLoading(true);
     try {
-      let endpoint = user.role === 'buyer' ? `/buyer/${user.id}` : `/dealer/${user.id}`;
+      let endpoint =
+        user.role === "buyer" ? `/buyer/${user.id}` : `/dealer/${user.id}`;
       const response = await api.get(endpoint);
       const userData = response.data;
-      
+
       // Initialize profile data with fetched user data
       const updatedProfileData = {
-        name: user.role === 'buyer' ? userData.buyerName : userData.businessName,
+        name:
+          user.role === "buyer" ? userData.buyerName : userData.businessName,
         email: userData.email,
-        phoneNumber: userData.phoneNumber || '',
-        businessName: user.role === 'dealer' ? userData.businessName : '',
-        licenseNumber: user.role === 'dealer' ? userData.licenseNumber : '',
-        profilePhoto: userData.profilePhoto ? 
-          // Convert Buffer data to base64 if it exists
-          `data:image/jpeg;base64,${Buffer.from(userData.profilePhoto.data).toString('base64')}` : 
-          null,
+        phoneNumber: userData.phoneNumber || "",
+        businessName: user.role === "dealer" ? userData.businessName : "",
+        licenseNumber: user.role === "dealer" ? userData.licenseNumber : "",
+        profilePhoto: userData.profilePhoto
+          ? typeof userData.profilePhoto === "string"
+            ? userData.profilePhoto
+            : `data:image/jpeg;base64,${Buffer.from(
+                userData.profilePhoto.data || ""
+              ).toString("base64")}`
+          : null,
       };
 
       setProfileData(updatedProfileData);
       setInitialData(updatedProfileData);
     } catch (error) {
-      console.error('Error fetching user details:', error);
-      toast.error('Failed to load profile information');
+      console.error("Error fetching user details:", error);
+      toast.error("Failed to load profile information");
+    } finally {
+      setPageLoading(false);
     }
   };
 
@@ -72,7 +84,10 @@ export default function Profile() {
     if (file) {
       const reader = new FileReader();
       reader.onloadend = () => {
-        setProfileData((prev) => ({ ...prev, profilePhoto: reader.result as string }));
+        setProfileData((prev) => ({
+          ...prev,
+          profilePhoto: reader.result as string,
+        }));
       };
       reader.readAsDataURL(file);
     }
@@ -81,78 +96,74 @@ export default function Profile() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
-
+  
     try {
-      const formData = new FormData();
-      
-      // Determine which fields to update based on user role
-      if (user.role === 'buyer') {
-        // Only include fields that have changed
+      const payload: any = {};
+  
+      // Handle name update
+      if (user.role === "buyer") {
         if (profileData.name !== initialData.name) {
-          formData.append('buyerName', profileData.name);
-        }
-        if (profileData.phoneNumber !== initialData.phoneNumber) {
-          formData.append('phoneNumber', profileData.phoneNumber);
+          payload.buyerName = profileData.name;
         }
       } else {
-        // Dealer fields
         if (profileData.name !== initialData.name) {
-          formData.append('businessName', profileData.name);
-        }
-        if (profileData.phoneNumber !== initialData.phoneNumber) {
-          formData.append('phoneNumber', profileData.phoneNumber);
+          payload.businessName = profileData.name;
         }
         if (profileData.licenseNumber !== initialData.licenseNumber) {
-          formData.append('licenseNumber', profileData.licenseNumber);
+          payload.licenseNumber = profileData.licenseNumber;
         }
       }
-
+  
+      // Handle phone number - ONLY include it if it has changed
+      // This avoids triggering the "already in use" check on the backend
+      if (profileData.phoneNumber !== initialData.phoneNumber) {
+        if (profileData.phoneNumber && /^\d+$/.test(profileData.phoneNumber)) {
+          payload.phoneNumber = profileData.phoneNumber;
+        } else {
+          toast.error("Phone number must contain only numbers");
+          setIsSubmitting(false);
+          return;
+        }
+      }
+  
       // Handle profile photo
-      if (profileData.profilePhoto && profileData.profilePhoto !== initialData.profilePhoto) {
-        // Convert base64 to file
-        const response = await fetch(profileData.profilePhoto);
-        const blob = await response.blob();
-        formData.append('profilePhoto', blob, 'profile.jpg');
-      }
-
-      // Prepare payload for API
-      const payload: any = {};
-      formData.forEach((value, key) => {
-        if (key !== 'profilePhoto') {
-          payload[key] = value;
-        }
-      });
-
-      // If we have profile photo in base64 format
-      if (profileData.profilePhoto && profileData.profilePhoto !== initialData.profilePhoto) {
-        // Extract base64 data - remove prefix like "data:image/jpeg;base64,"
-        const base64String = profileData.profilePhoto.split(',')[1];
+      if (
+        profileData.profilePhoto &&
+        profileData.profilePhoto !== initialData.profilePhoto
+      ) {
+        const base64String = profileData.profilePhoto.split(",")[1];
         payload.profilePhoto = base64String;
       }
-
-      // Send update request
-      const endpoint = user.role === 'buyer' ? `/buyer/${user.id}` : `/dealer/${user.id}`;
+  
+      // Only proceed if there's something meaningful to update
+      if (Object.keys(payload).length === 0) {
+        toast("No changes to update");
+        setIsSubmitting(false);
+        setIsEditing(false);
+        return;
+      }
+  
+      const endpoint =
+        user.role === "buyer" ? `/buyer/${user.id}` : `/dealer/${user.id}`;
       await api.patch(endpoint, payload);
-      
-      // Update auth context with new name if changed
+  
       if (profileData.name !== initialData.name) {
         updateUserInfo({ ...user, name: profileData.name });
       }
-
-      toast.success('Profile updated successfully');
+  
+      toast.success("Profile updated successfully");
       setIsEditing(false);
-      
-      // Refresh user details
       fetchUserDetails();
     } catch (error) {
-      console.error('Error updating profile:', error);
-      toast.error('Failed to update profile');
+      console.error("Error updating profile:", error);
+      toast.error("Failed to update profile");
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  if (loading) {
+  // Show loading while auth or page data is loading
+  if (loading || pageLoading) {
     return (
       <div className="flex justify-center items-center min-h-screen">
         <div className="text-xl">Loading...</div>
@@ -175,8 +186,12 @@ export default function Profile() {
             <div className="bg-white shadow overflow-hidden sm:rounded-lg">
               <div className="px-4 py-5 sm:px-6 flex justify-between items-center">
                 <div>
-                  <h3 className="text-lg leading-6 font-medium text-gray-900">Personal Information</h3>
-                  <p className="mt-1 max-w-2xl text-sm text-gray-500">Your personal details and profile settings.</p>
+                  <h3 className="text-lg leading-6 font-medium text-gray-900">
+                    Personal Information
+                  </h3>
+                  <p className="mt-1 max-w-2xl text-sm text-gray-500">
+                    Your personal details and profile settings.
+                  </p>
                 </div>
                 {!isEditing && (
                   <button
@@ -189,12 +204,20 @@ export default function Profile() {
               </div>
               <div className="border-t border-gray-200">
                 {isEditing ? (
-                  <form onSubmit={handleSubmit} className="divide-y divide-gray-200">
+                  <form
+                    onSubmit={handleSubmit}
+                    className="divide-y divide-gray-200"
+                  >
                     <div className="px-4 py-5 sm:p-6">
                       <div className="grid grid-cols-6 gap-6">
                         <div className="col-span-6 sm:col-span-3">
-                          <label htmlFor="name" className="block text-sm font-medium text-gray-700">
-                            {user.role === 'buyer' ? 'Full Name' : 'Business Name'}
+                          <label
+                            htmlFor="name"
+                            className="block text-sm font-medium text-gray-700"
+                          >
+                            {user.role === "buyer"
+                              ? "Full Name"
+                              : "Business Name"}
                           </label>
                           <input
                             type="text"
@@ -207,7 +230,10 @@ export default function Profile() {
                         </div>
 
                         <div className="col-span-6 sm:col-span-3">
-                          <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+                          <label
+                            htmlFor="email"
+                            className="block text-sm font-medium text-gray-700"
+                          >
                             Email address
                           </label>
                           <input
@@ -218,11 +244,16 @@ export default function Profile() {
                             disabled
                             className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 bg-gray-50 sm:text-sm"
                           />
-                          <p className="mt-1 text-sm text-gray-500">Email cannot be changed.</p>
+                          <p className="mt-1 text-sm text-gray-500">
+                            Email cannot be changed.
+                          </p>
                         </div>
 
                         <div className="col-span-6 sm:col-span-3">
-                          <label htmlFor="phoneNumber" className="block text-sm font-medium text-gray-700">
+                          <label
+                            htmlFor="phoneNumber"
+                            className="block text-sm font-medium text-gray-700"
+                          >
                             Phone Number
                           </label>
                           <input
@@ -235,9 +266,12 @@ export default function Profile() {
                           />
                         </div>
 
-                        {user.role === 'dealer' && (
+                        {user.role === "dealer" && (
                           <div className="col-span-6 sm:col-span-3">
-                            <label htmlFor="licenseNumber" className="block text-sm font-medium text-gray-700">
+                            <label
+                              htmlFor="licenseNumber"
+                              className="block text-sm font-medium text-gray-700"
+                            >
                               License Number
                             </label>
                             <input
@@ -252,15 +286,25 @@ export default function Profile() {
                         )}
 
                         <div className="col-span-6">
-                          <label className="block text-sm font-medium text-gray-700">Profile Photo</label>
+                          <label className="block text-sm font-medium text-gray-700">
+                            Profile Photo
+                          </label>
                           <div className="mt-1 flex items-center">
                             {profileData.profilePhoto ? (
                               <span className="h-12 w-12 rounded-full overflow-hidden bg-gray-100">
-                                <img src={profileData.profilePhoto} alt="Profile" className="h-full w-full object-cover" />
+                                <img
+                                  src={profileData.profilePhoto}
+                                  alt="Profile"
+                                  className="h-full w-full object-cover"
+                                />
                               </span>
                             ) : (
                               <span className="h-12 w-12 rounded-full overflow-hidden bg-gray-100">
-                                <svg className="h-full w-full text-gray-300" fill="currentColor" viewBox="0 0 24 24">
+                                <svg
+                                  className="h-full w-full text-gray-300"
+                                  fill="currentColor"
+                                  viewBox="0 0 24 24"
+                                >
                                   <path d="M24 20.993V24H0v-2.996A14.977 14.977 0 0112.004 15c4.904 0 9.26 2.354 11.996 5.993zM16.002 8.999a4 4 0 11-8 0 4 4 0 018 0z" />
                                 </svg>
                               </span>
@@ -291,7 +335,7 @@ export default function Profile() {
                         className="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                         disabled={isSubmitting}
                       >
-                        {isSubmitting ? 'Saving...' : 'Save Changes'}
+                        {isSubmitting ? "Saving..." : "Save Changes"}
                       </button>
                     </div>
                   </form>
@@ -299,47 +343,69 @@ export default function Profile() {
                   <dl>
                     <div className="bg-gray-50 px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
                       <dt className="text-sm font-medium text-gray-500">
-                        {user.role === 'buyer' ? 'Full name' : 'Business name'}
+                        {user.role === "buyer" ? "Full name" : "Business name"}
                       </dt>
-                      <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">{profileData.name}</dd>
-                    </div>
-                    <div className="bg-white px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
-                      <dt className="text-sm font-medium text-gray-500">Account type</dt>
-                      <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2 capitalize">{user.role}</dd>
-                    </div>
-                    <div className="bg-gray-50 px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
-                      <dt className="text-sm font-medium text-gray-500">Email address</dt>
-                      <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">{profileData.email}</dd>
-                    </div>
-                    <div className="bg-white px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
-                      <dt className="text-sm font-medium text-gray-500">Phone number</dt>
                       <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
-                        {profileData.phoneNumber || 'Not provided'}
+                        {profileData.name}
                       </dd>
                     </div>
-                    {user.role === 'dealer' && (
+                    <div className="bg-white px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                      <dt className="text-sm font-medium text-gray-500">
+                        Account type
+                      </dt>
+                      <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2 capitalize">
+                        {user.role}
+                      </dd>
+                    </div>
+                    <div className="bg-gray-50 px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                      <dt className="text-sm font-medium text-gray-500">
+                        Email address
+                      </dt>
+                      <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
+                        {profileData.email}
+                      </dd>
+                    </div>
+                    <div className="bg-white px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                      <dt className="text-sm font-medium text-gray-500">
+                        Phone number
+                      </dt>
+                      <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
+                        {profileData.phoneNumber || "Not provided"}
+                      </dd>
+                    </div>
+                    {user.role === "dealer" && (
                       <div className="bg-gray-50 px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
-                        <dt className="text-sm font-medium text-gray-500">License number</dt>
+                        <dt className="text-sm font-medium text-gray-500">
+                          License number
+                        </dt>
                         <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
-                          {profileData.licenseNumber || 'Not provided'}
+                          {profileData.licenseNumber || "Not provided"}
                         </dd>
                       </div>
                     )}
                     <div className="bg-white px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
-                      <dt className="text-sm font-medium text-gray-500">Account ID</dt>
-                      <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">{user.id}</dd>
+                      <dt className="text-sm font-medium text-gray-500">
+                        Account ID
+                      </dt>
+                      <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
+                        {user.id}
+                      </dd>
                     </div>
                     <div className="bg-gray-50 px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
-                      <dt className="text-sm font-medium text-gray-500">Profile photo</dt>
+                      <dt className="text-sm font-medium text-gray-500">
+                        Profile photo
+                      </dt>
                       <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
                         {profileData.profilePhoto ? (
-                          <img 
-                            src={profileData.profilePhoto} 
-                            alt="Profile" 
-                            className="h-20 w-20 rounded-full object-cover" 
+                          <img
+                            src={profileData.profilePhoto}
+                            alt="Profile"
+                            className="h-20 w-20 rounded-full object-cover"
                           />
                         ) : (
-                          <span className="text-gray-500">No profile photo</span>
+                          <span className="text-gray-500">
+                            No profile photo
+                          </span>
                         )}
                       </dd>
                     </div>

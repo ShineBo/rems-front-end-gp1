@@ -1,27 +1,23 @@
-// /services/api.ts
 import axios from 'axios';
 
 const API_URL = 'http://localhost:3000';
 
-// Create axios instance with base URL
 const api = axios.create({
   baseURL: API_URL,
   headers: {
     'Content-Type': 'application/json',
   },
-  withCredentials: true, // Send cookies with every request
+  withCredentials: true,
 });
 
-// Add interceptor to include auth token in requests
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('accessToken');
+  const token = getCookie('accessToken');
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
   return config;
 });
 
-// Authentication services
 export const authService = {
   async buyerLogin(email: string, password: string) {
     const response = await api.post('/auth/buyer/login', { email, password });
@@ -57,67 +53,68 @@ export const authService = {
   },
 
   logout() {
-    localStorage.removeItem('accessToken');
-    localStorage.removeItem('userInfo');
-  
-    // Clear the token from cookies too
+    // Clear cookies
     document.cookie = 'accessToken=; path=/; max-age=0';
+    document.cookie = 'userInfo=; path=/; max-age=0';
+    
+    // Also clear localStorage to be safe
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('accessToken');
+      localStorage.removeItem('userInfo');
+    }
   },
 
   getCurrentUser() {
-    const userInfo = localStorage.getItem('userInfo');
-    return userInfo ? JSON.parse(userInfo) : null;
+    try {
+      const userInfo = getCookie('userInfo');
+      
+      if (!userInfo) {
+        // Try localStorage as fallback (for migration)
+        if (typeof window !== 'undefined') {
+          const legacyUserInfo = localStorage.getItem('userInfo');
+          if (legacyUserInfo) {
+            return JSON.parse(legacyUserInfo);
+          }
+        }
+        return null;
+      }
+      
+      return JSON.parse(decodeURIComponent(userInfo));
+    } catch (error) {
+      console.error('Error parsing user info:', error);
+      // Clear potentially corrupted data
+      document.cookie = 'accessToken=; path=/; max-age=0';
+      document.cookie = 'userInfo=; path=/; max-age=0';
+      return null;
+    }
   },
 
   setAuthData(accessToken: string, user: any) {
-    localStorage.setItem('accessToken', accessToken);
-    localStorage.setItem('userInfo', JSON.stringify(user));
+    try {
+      // Set cookies with proper expiration (7 days)
+      const expiryDate = new Date();
+      expiryDate.setDate(expiryDate.getDate() + 7);
+      
+      document.cookie = `accessToken=${accessToken}; path=/; expires=${expiryDate.toUTCString()}`;
+      document.cookie = `userInfo=${encodeURIComponent(JSON.stringify(user))}; path=/; expires=${expiryDate.toUTCString()}`;
+      
+      // Clear localStorage if we're fully migrating to cookies
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('userInfo');
+      }
+    } catch (error) {
+      console.error('Error setting auth data:', error);
+    }
+  }
+};
+
+// Helper function to get cookie value
+function getCookie(name: string): string | null {
+  if (typeof document === 'undefined') return null; // For SSR
   
-    // Store access token in cookies (expires in 7 days)
-    document.cookie = `accessToken=${accessToken}; path=/; max-age=${60 * 60 * 24 * 7}`;
-  }
-};
-
-// User profile services
-export const profileService = {
-  // Get buyer profile by ID
-  async getBuyerProfile(buyerId: number) {
-    const response = await api.get(`/buyer/${buyerId}`);
-    return response.data;
-  },
-
-  // Get dealer profile by ID
-  async getDealerProfile(dealerId: number) {
-    const response = await api.get(`/dealer/${dealerId}`);
-    return response.data;
-  },
-
-  // Update buyer profile
-  async updateBuyerProfile(buyerId: number, profileData: any) {
-    const response = await api.patch(`/buyer/${buyerId}`, profileData);
-    return response.data;
-  },
-
-  // Update dealer profile
-  async updateDealerProfile(dealerId: number, profileData: any) {
-    const response = await api.patch(`/dealer/${dealerId}`, profileData);
-    return response.data;
-  },
-
-  // Upload profile photo (if you want to handle this separately)
-  async uploadProfilePhoto(userId: number, role: 'buyer' | 'dealer', photoFile: File) {
-    const formData = new FormData();
-    formData.append('profilePhoto', photoFile);
-    
-    const endpoint = role === 'buyer' ? `/buyer/${userId}/photo` : `/dealer/${userId}/photo`;
-    const response = await api.post(endpoint, formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    });
-    
-    return response.data;
-  }
-};
+  const match = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'));
+  return match ? match[2] : null;
+}
 
 export default api;

@@ -1,22 +1,27 @@
 // /app/dashboard/page.tsx
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 
 export default function Dashboard() {
   const { user, loading, logout } = useAuth();
   const router = useRouter();
+  const [isInitialized, setIsInitialized] = useState(false);
 
   useEffect(() => {
-    // Redirect if not logged in
-    if (!loading && !user) {
-      router.push('/login');
+    // Only redirect if loading is complete AND we're sure there's no user
+    if (!loading) {
+      setIsInitialized(true);
+      if (!user) {
+        router.push('/login');
+      }
     }
   }, [user, loading, router]);
 
-  if (loading) {
+  // Show loading while auth is initializing
+  if (loading || !isInitialized) {
     return (
       <div className="flex justify-center items-center min-h-screen">
         <div className="text-xl">Loading...</div>
@@ -24,6 +29,7 @@ export default function Dashboard() {
     );
   }
 
+  // Don't render if no user (while redirecting)
   if (!user) return null;
 
   return (
