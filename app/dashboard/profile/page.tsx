@@ -46,7 +46,29 @@ export default function Profile() {
         user.role === "buyer" ? `/buyer/${user.id}` : `/dealer/${user.id}`;
       const response = await api.get(endpoint);
       const userData = response.data;
-
+  
+      // More robust handling of profile photo data
+      let photoData = null;
+      if (userData.profilePhoto) {
+        if (typeof userData.profilePhoto === "string") {
+          photoData = userData.profilePhoto;
+        } else if (userData.profilePhoto.data) {
+          // Handle Buffer object properly
+          try {
+            // For browser environments
+            const uint8Array = new Uint8Array(userData.profilePhoto.data);
+            const blob = new Blob([uint8Array], { type: 'image/jpeg' });
+            const reader = new FileReader();
+            photoData = await new Promise((resolve) => {
+              reader.onloadend = () => resolve(reader.result);
+              reader.readAsDataURL(blob);
+            });
+          } catch (err) {
+            console.error("Error processing profile photo:", err);
+          }
+        }
+      }
+  
       // Initialize profile data with fetched user data
       const updatedProfileData = {
         name:
@@ -55,15 +77,9 @@ export default function Profile() {
         phoneNumber: userData.phoneNumber || "",
         businessName: user.role === "dealer" ? userData.businessName : "",
         licenseNumber: user.role === "dealer" ? userData.licenseNumber : "",
-        profilePhoto: userData.profilePhoto
-          ? typeof userData.profilePhoto === "string"
-            ? userData.profilePhoto
-            : `data:image/jpeg;base64,${Buffer.from(
-                userData.profilePhoto.data || ""
-              ).toString("base64")}`
-          : null,
+        profilePhoto: photoData,
       };
-
+  
       setProfileData(updatedProfileData);
       setInitialData(updatedProfileData);
     } catch (error) {
