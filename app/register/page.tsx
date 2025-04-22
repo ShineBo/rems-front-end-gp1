@@ -67,11 +67,9 @@ export default function Register() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    if (formData.password !== formData.confirmPassword) {
-      return;
-    }
-
+  
+    if (formData.password !== formData.confirmPassword) return;
+  
     if (userType === "buyer") {
       await registerBuyer({
         buyerName: formData.buyerName,
@@ -89,6 +87,11 @@ export default function Register() {
         phoneNumber: formData.phoneNumber,
         profilePhoto: formData.profilePhoto,
       });
+    }
+  
+    // If registration is successful, redirect to login
+    if (!error) {
+      router.push(`/login?type=${userType}`);
     }
   };
 

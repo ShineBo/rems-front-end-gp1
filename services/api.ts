@@ -36,6 +36,7 @@ export const authService = {
     phoneNumber: string;
     profilePhoto: string | null;
   }) {
+    // Just return the response without handling auth data
     const response = await api.post('/buyer', buyerData);
     return response.data;
   },
@@ -48,6 +49,7 @@ export const authService = {
     phoneNumber: string;
     profilePhoto: string | null;
   }) {
+    // Just return the response without handling auth data
     const response = await api.post('/dealer', dealerData);
     return response.data;
   },

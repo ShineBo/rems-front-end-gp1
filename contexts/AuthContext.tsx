@@ -121,10 +121,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setLoading(true);
     setError(null);
     try {
-      const data = await authService.registerBuyer(buyerData);
-      authService.setAuthData(data.accessToken, data.user);
-      setUser(data.user);
-      router.push('/dashboard');
+      await authService.registerBuyer(buyerData);
+      // Don't set auth data or user after registration
+      router.push('/login?registered=true&type=buyer');
     } catch (err: any) {
       setError(err.response?.data?.message || 'Registration failed');
       console.error('Registration error:', err);
@@ -132,15 +131,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setLoading(false);
     }
   };
-
+  
   const registerDealer = async (dealerData: any) => {
     setLoading(true);
     setError(null);
     try {
-      const data = await authService.registerDealer(dealerData);
-      authService.setAuthData(data.accessToken, data.user);
-      setUser(data.user);
-      router.push('/dashboard');
+      await authService.registerDealer(dealerData);
+      // Don't set auth data or user after registration
+      router.push('/login?registered=true&type=dealer');
     } catch (err: any) {
       setError(err.response?.data?.message || 'Registration failed');
       console.error('Registration error:', err);
