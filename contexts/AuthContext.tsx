@@ -1,20 +1,14 @@
-"use client";
+'use client';
 
-import {
-  createContext,
-  useContext,
-  useState,
-  useEffect,
-  ReactNode,
-} from "react";
-import { authService } from "@/services/api";
-import { useRouter } from "next/navigation";
+import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { authService } from '@/services/api';
+import { useRouter } from 'next/navigation';
 
 interface User {
   id: number;
   name: string;
   email: string;
-  role: "buyer" | "dealer";
+  role: 'buyer' | 'dealer';
 }
 
 interface AuthContextType {
@@ -41,21 +35,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const checkAuth = async () => {
       try {
         // Check if there's a token in local storage from previous versions
-        const legacyToken = localStorage.getItem("accessToken");
-        const legacyUser = localStorage.getItem("userInfo");
-
+        const legacyToken = localStorage.getItem('accessToken');
+        const legacyUser = localStorage.getItem('userInfo');
+        
         // If legacy token exists but no cookie, migrate to cookies
-        if (legacyToken && !getCookie("accessToken")) {
-          console.log("Migrating from localStorage to cookies");
+        if (legacyToken && !getCookie('accessToken')) {
+          console.log('Migrating from localStorage to cookies');
           // Set cookies from localStorage data
           if (legacyUser) {
             const userObj = JSON.parse(legacyUser);
             authService.setAuthData(legacyToken, userObj);
             setUser(userObj);
-
+            
             // Clean up localStorage
-            localStorage.removeItem("accessToken");
-            localStorage.removeItem("userInfo");
+            localStorage.removeItem('accessToken');
+            localStorage.removeItem('userInfo');
           }
         } else {
           // Use cookie-based auth
@@ -64,20 +58,20 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             setUser(currentUser);
           } else {
             // If no user in cookies, clear any potential corrupted state
-            document.cookie = "accessToken=; path=/; max-age=0";
-            document.cookie = "userInfo=; path=/; max-age=0";
+            document.cookie = 'accessToken=; path=/; max-age=0';
+            document.cookie = 'userInfo=; path=/; max-age=0';
           }
         }
       } catch (error) {
-        console.error("Failed to get current user:", error);
+        console.error('Failed to get current user:', error);
         // Clear potentially corrupted cookies
-        document.cookie = "accessToken=; path=/; max-age=0";
-        document.cookie = "userInfo=; path=/; max-age=0";
+        document.cookie = 'accessToken=; path=/; max-age=0';
+        document.cookie = 'userInfo=; path=/; max-age=0';
       } finally {
         setLoading(false);
       }
     };
-
+    
     checkAuth();
   }, []);
 
@@ -88,10 +82,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const data = await authService.buyerLogin(email, password);
       authService.setAuthData(data.accessToken, data.user);
       setUser(data.user);
-      router.push("/dashboard");
+      router.push('/dashboard');
     } catch (err: any) {
-      setError(err.response?.data?.message || "Login failed");
-      console.error("Login error:", err);
+      setError(err.response?.data?.message || 'Login failed');
+      console.error('Login error:', err);
     } finally {
       setLoading(false);
     }
@@ -104,10 +98,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const data = await authService.dealerLogin(email, password);
       authService.setAuthData(data.accessToken, data.user);
       setUser(data.user);
-      router.push("/dashboard");
+      router.push('/dashboard');
     } catch (err: any) {
-      setError(err.response?.data?.message || "Login failed");
-      console.error("Login error:", err);
+      setError(err.response?.data?.message || 'Login failed');
+      console.error('Login error:', err);
     } finally {
       setLoading(false);
     }
@@ -117,23 +111,22 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     // Clear cookies
     authService.logout();
     // Clear any localStorage remnants
-    localStorage.removeItem("accessToken");
-    localStorage.removeItem("userInfo");
+    localStorage.removeItem('accessToken');
+    localStorage.removeItem('userInfo');
     setUser(null);
-    router.push("/");
+    router.push('/');
   };
 
   const registerBuyer = async (buyerData: any) => {
     setLoading(true);
     setError(null);
     try {
-      const data = await authService.registerBuyer(buyerData);
-      authService.setAuthData(data.accessToken, data.user);
-      setUser(data.user);
-      router.push('/dashboard');
+      await authService.registerBuyer(buyerData);
+      // Don't set auth data or user after registration
+      router.push('/login?registered=true&type=buyer');
     } catch (err: any) {
-      setError(err.response?.data?.message || "Registration failed");
-      console.error("Registration error:", err);
+      setError(err.response?.data?.message || 'Registration failed');
+      console.error('Registration error:', err);
     } finally {
       setLoading(false);
     }
@@ -143,13 +136,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setLoading(true);
     setError(null);
     try {
-      const data = await authService.registerDealer(dealerData);
-      authService.setAuthData(data.accessToken, data.user);
-      setUser(data.user);
-      router.push('/dashboard');
+      await authService.registerDealer(dealerData);
+      // Don't set auth data or user after registration
+      router.push('/login?registered=true&type=dealer');
     } catch (err: any) {
-      setError(err.response?.data?.message || "Registration failed");
-      console.error("Registration error:", err);
+      setError(err.response?.data?.message || 'Registration failed');
+      console.error('Registration error:', err);
     } finally {
       setLoading(false);
     }
@@ -158,7 +150,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const updateUserInfo = (updatedUser: User) => {
     setUser(updatedUser);
 
-    const accessToken = getCookie("accessToken");
+    const accessToken = getCookie('accessToken');
     if (accessToken) {
       authService.setAuthData(accessToken, updatedUser);
     }
@@ -181,14 +173,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
 // Helper function to get cookie by name
 function getCookie(name: string): string | null {
-  const match = document.cookie.match(new RegExp("(^| )" + name + "=([^;]+)"));
+  const match = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'));
   return match ? match[2] : null;
 }
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (context === undefined) {
-    throw new Error("useAuth must be used within an AuthProvider");
+    throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;
 };
