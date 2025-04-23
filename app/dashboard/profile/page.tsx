@@ -1,4 +1,3 @@
-// /app/dashboard/profile/page.tsx
 "use client";
 
 import { useState, useEffect } from "react";
@@ -22,6 +21,7 @@ export default function Profile() {
     profilePhoto: null as string | null,
   });
   const [initialData, setInitialData] = useState({} as any);
+  const [profileImageFile, setProfileImageFile] = useState<File | null>(null);
 
   useEffect(() => {
     // First check if auth is done loading
@@ -42,37 +42,58 @@ export default function Profile() {
   const fetchUserDetails = async () => {
     setPageLoading(true);
     try {
-      let endpoint =
-        user.role === "buyer" ? `/buyer/${user.id}` : `/dealer/${user.id}`;
+      const endpoint = user.role === "buyer" ? `/buyer/${user.id}` : `/dealer/${user.id}`;
       const response = await api.get(endpoint);
       const userData = response.data;
   
-      // More robust handling of profile photo data
+      // Improved and simpler handling of profile photo data
       let photoData = null;
+      
+      // If there's a profile photo in the response
       if (userData.profilePhoto) {
+        // If it's already a string (URL or Base64), use it directly
         if (typeof userData.profilePhoto === "string") {
           photoData = userData.profilePhoto;
-        } else if (userData.profilePhoto.data) {
-          // Handle Buffer object properly
+        } 
+        // If it's a Buffer or Array data
+        else if (userData.profilePhoto.data) {
           try {
-            // For browser environments
-            const uint8Array = new Uint8Array(userData.profilePhoto.data);
-            const blob = new Blob([uint8Array], { type: 'image/jpeg' });
-            const reader = new FileReader();
-            photoData = await new Promise((resolve) => {
-              reader.onloadend = () => resolve(reader.result);
-              reader.readAsDataURL(blob);
-            });
+            // Convert to Base64
+            let base64String;
+            
+            // If it's an array of numbers
+            if (Array.isArray(userData.profilePhoto.data)) {
+              const uint8Array = new Uint8Array(userData.profilePhoto.data);
+              const blob = new Blob([uint8Array], { type: 'image/jpeg' });
+              base64String = await new Promise<string>((resolve) => {
+                const reader = new FileReader();
+                reader.onloadend = () => resolve(reader.result as string);
+                reader.readAsDataURL(blob);
+              });
+            } 
+            // If it's already encoded somehow
+            else if (typeof userData.profilePhoto.data === 'string') {
+              // Check if it's already a base64 string
+              if (userData.profilePhoto.data.startsWith('data:image')) {
+                base64String = userData.profilePhoto.data;
+              } else {
+                // Try to convert to base64
+                base64String = `data:image/jpeg;base64,${btoa(userData.profilePhoto.data)}`;
+              }
+            }
+            
+            photoData = base64String;
           } catch (err) {
             console.error("Error processing profile photo:", err);
+            // Fallback to null if conversion fails
+            photoData = null;
           }
         }
       }
   
       // Initialize profile data with fetched user data
       const updatedProfileData = {
-        name:
-          user.role === "buyer" ? userData.buyerName : userData.businessName,
+        name: user.role === "buyer" ? userData.buyerName : userData.businessName,
         email: userData.email,
         phoneNumber: userData.phoneNumber || "",
         businessName: user.role === "dealer" ? userData.businessName : "",
@@ -91,23 +112,18 @@ export default function Profile() {
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setProfileData((prev) => ({ ...prev, [name]: value }));
+    setProfileData({ ...profileData, [e.target.name]: e.target.value });
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setProfileData((prev) => ({
-          ...prev,
-          profilePhoto: reader.result as string,
-        }));
-      };
-      reader.readAsDataURL(file);
+    if (e.target.files && e.target.files[0]) {
+      setProfileData({
+        ...profileData,
+        profilePhoto: URL.createObjectURL(e.target.files[0]),
+      });
     }
   };
+
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -143,11 +159,19 @@ export default function Profile() {
       }
   
       // Handle profile photo
-      if (
-        profileData.profilePhoto &&
-        profileData.profilePhoto !== initialData.profilePhoto
-      ) {
-        const base64String = profileData.profilePhoto.split(",")[1];
+      if (profileImageFile) {
+        // Convert the file to base64 for API submission
+        const base64String = await new Promise<string>((resolve) => {
+          const reader = new FileReader();
+          reader.onloadend = () => {
+            // Split to get just the base64 part without the MIME prefix
+            const result = reader.result as string;
+            const base64 = result.split(',')[1];
+            resolve(base64);
+          };
+          reader.readAsDataURL(profileImageFile);
+        });
+        
         payload.profilePhoto = base64String;
       }
   
@@ -159,8 +183,7 @@ export default function Profile() {
         return;
       }
   
-      const endpoint =
-        user.role === "buyer" ? `/buyer/${user.id}` : `/dealer/${user.id}`;
+      const endpoint = user.role === "buyer" ? `/buyer/${user.id}` : `/dealer/${user.id}`;
       await api.patch(endpoint, payload);
   
       if (profileData.name !== initialData.name) {
@@ -169,6 +192,16 @@ export default function Profile() {
   
       toast.success("Profile updated successfully");
       setIsEditing(false);
+      
+      // Clean up any object URLs to prevent memory leaks
+      if (profileImageFile && profileData.profilePhoto?.startsWith('blob:')) {
+        URL.revokeObjectURL(profileData.profilePhoto);
+      }
+      
+      // Reset the file state
+      setProfileImageFile(null);
+      
+      // Refetch user details to get the updated profile
       fetchUserDetails();
     } catch (error) {
       console.error("Error updating profile:", error);
@@ -177,6 +210,15 @@ export default function Profile() {
       setIsSubmitting(false);
     }
   };
+
+  // Clean up object URLs when component unmounts
+  useEffect(() => {
+    return () => {
+      if (profileData.profilePhoto?.startsWith('blob:')) {
+        URL.revokeObjectURL(profileData.profilePhoto);
+      }
+    };
+  }, []);
 
   // Show loading while auth or page data is loading
   if (loading || pageLoading) {
@@ -340,7 +382,15 @@ export default function Profile() {
                     <div className="px-4 py-3 bg-gray-50 text-right sm:px-6">
                       <button
                         type="button"
-                        onClick={() => setIsEditing(false)}
+                        onClick={() => {
+                          // Cleanup any created object URLs
+                          if (profileImageFile && profileData.profilePhoto?.startsWith('blob:')) {
+                            URL.revokeObjectURL(profileData.profilePhoto);
+                          }
+                          setProfileImageFile(null);
+                          setProfileData(initialData);
+                          setIsEditing(false);
+                        }}
                         className="bg-white py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 mr-3"
                         disabled={isSubmitting}
                       >
@@ -362,7 +412,7 @@ export default function Profile() {
                         {user.role === "buyer" ? "Full name" : "Business name"}
                       </dt>
                       <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
-                        {profileData.name}
+                        {profileData.name || "Not provided"}
                       </dd>
                     </div>
                     <div className="bg-white px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
