@@ -14,6 +14,7 @@ export default function Login() {
   const { buyerLogin, dealerLogin, error, loading, user } = useAuth();
   const searchParams = useSearchParams();
   const router = useRouter();
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   useEffect(() => {
     // Redirect if already logged in
@@ -25,6 +26,12 @@ export default function Login() {
     const type = searchParams.get("type");
     if (type === "buyer" || type === "dealer") {
       setUserType(type);
+    }
+
+    const success = searchParams.get("success");
+    if (success === "1") {
+      setSuccessMessage("Account created successfully! Please log in!");
+      setTimeout(() => setSuccessMessage(null), 5000);
     }
   }, [user, router, searchParams]);
 
@@ -77,9 +84,17 @@ export default function Login() {
               </div>
 
               <form className="space-y-6" onSubmit={handleSubmit}>
+                {/* Error Message */}
                 {error && (
                   <div className="p-3 bg-red-100 text-red-700 rounded-md">
                     {error}
+                  </div>
+                )}
+
+                {/* Success Message */}
+                {successMessage && (
+                  <div className="p-3 bg-green-100 text-green-700 rounded-md">
+                    {successMessage}
                   </div>
                 )}
 
@@ -145,7 +160,7 @@ export default function Login() {
 
               <div className="mt-6 text-center">
                 <p className="text-sm text-gray-600">
-                  Don't have an account?{" "}
+                  Don&apos;t have an account?{" "}
                   <Link
                     href={`/register?type=${userType}`}
                     className="font-medium text-blue-600 hover:text-blue-500"

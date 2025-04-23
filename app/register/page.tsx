@@ -93,7 +93,7 @@ export default function Register() {
 
     // If registration is successful, redirect to login
     if (!error) {
-      router.push(`/login?type=${userType}`);
+      router.push(`/login?type=${userType}&success=1`);
     }
   };
 
