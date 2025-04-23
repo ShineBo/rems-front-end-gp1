@@ -1,7 +1,7 @@
 // /app/register/page.tsx
 "use client";
 
-import { useState, useEffect } from "react";
+import { useRef, useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
@@ -23,6 +23,8 @@ export default function Register() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
+  const [showPassword2, setShowPassword2] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     // Redirect if already logged in
@@ -67,9 +69,9 @@ export default function Register() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-  
+
     if (formData.password !== formData.confirmPassword) return;
-  
+
     if (userType === "buyer") {
       await registerBuyer({
         buyerName: formData.buyerName,
@@ -88,7 +90,7 @@ export default function Register() {
         profilePhoto: formData.profilePhoto,
       });
     }
-  
+
     // If registration is successful, redirect to login
     if (!error) {
       router.push(`/login?type=${userType}`);
@@ -154,7 +156,7 @@ export default function Register() {
                       required
                       value={formData.buyerName}
                       onChange={handleChange}
-                      className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                      className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm text-gray-800"
                     />
                   </div>
                 </div>
@@ -263,8 +265,10 @@ export default function Register() {
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="block text-sm font-medium text-blue-700"
-                  >{showPassword ? "Hide Password" : "Show Password"}</button>
+                    className="block text-sm font-medium text-blue-700 hover:underline"
+                  >
+                    {showPassword ? "Hide Password" : "Show Password"}
+                  </button>
                 </div>
               </div>
 
@@ -279,7 +283,7 @@ export default function Register() {
                   <input
                     id="confirmPassword"
                     name="confirmPassword"
-                    type="password"
+                    type={showPassword2 ? "text" : "password"}
                     required
                     value={formData.confirmPassword}
                     onChange={handleChange}
@@ -289,6 +293,13 @@ export default function Register() {
                         : "border-gray-300"
                     }`}
                   />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword2(!showPassword2)}
+                    className="block text-sm font-medium text-blue-700 hover:underline"
+                  >
+                    {showPassword2 ? "Hide Password" : "Show Password"}
+                  </button>
                   {!passwordsMatch && formData.confirmPassword && (
                     <p className="mt-1 text-sm text-red-600">
                       Passwords do not match
@@ -311,8 +322,21 @@ export default function Register() {
                     type="file"
                     accept="image/*"
                     onChange={handleFileChange}
+                    ref={fileInputRef}
                     className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm text-gray-800"
                   />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFormData((prev) => ({ ...prev, profilePhoto: null }));
+                      if (fileInputRef.current) {
+                        fileInputRef.current.value = ""; // 👈 this clears the file input visually
+                      }
+                    }}
+                    className="block text-sm font-medium text-blue-700 hover:underline"
+                  >
+                    Clear
+                  </button>
                 </div>
               </div>
 
