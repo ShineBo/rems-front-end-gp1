@@ -157,7 +157,7 @@ export default function DealerDashboard({ dealerID }: { dealerID: number }) {
     if (filter === "all") return true;
     if (filter === "available") return property.status === "Available";
     if (filter === "pending") return property.status === "Pending";
-    if (filter === "sold") return property.status === "Sold Out";
+    if (filter === "sold") return property.status === "Sold";
     return true;
   });
 

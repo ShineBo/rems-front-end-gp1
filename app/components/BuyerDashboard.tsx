@@ -53,7 +53,7 @@ export default function BuyerDashboard() {
     .filter(property => {
       if (filter === 'all') return true;
       if (filter === 'available') return property.status === 'Available';
-      if (filter === 'sold') return property.status === 'Sold Out';
+      if (filter === 'sold') return property.status === 'Sold';
       return true;
     })
     .sort((a, b) => {
