@@ -315,7 +315,7 @@ export default function PropertyForm({ initialData, dealerID, onSubmit, onCancel
         >
           <option value="Available">Available</option>
           <option value="Pending">Pending</option>
-          <option value="Sold Out">Sold Out</option>
+          <option value="Sold">Sold</option>
         </select>
         {errors.status && (
           <p className="text-red-500 text-sm mt-1">{errors.status}</p>

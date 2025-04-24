@@ -129,6 +129,19 @@ export default function PropertyCard({ property, isDealer = false, onEdit, onDel
     }).format(price);
   };
 
+  const getStatusColour = (status: string) => {
+    switch(status.toLowerCase()) {
+      case "available":
+        return "text-green-600";
+      case "sold":
+        return "text-red-600";
+      case "pending":
+        return "text-yellow-600";
+      default:
+        return "text-black";
+    }
+  };
+
   return (
     <div className="bg-white shadow-lg rounded-lg overflow-hidden mb-6 border border-gray-200">
       <div className="relative h-48 bg-gray-200">
@@ -144,7 +157,7 @@ export default function PropertyCard({ property, isDealer = false, onEdit, onDel
             No Image Available
           </div>
         )}
-        <div className="absolute top-2 right-2 bg-white px-2 py-1 rounded-full text-xs font-bold">
+        <div className={`absolute top-2 right-2 bg-white px-2 py-1 rounded-full text-xs font-bold ${getStatusColour(property.status)}`}>
           {property.status}
         </div>
       </div>
