@@ -27,8 +27,8 @@ export default function DashboardLayout({
   return (
     <div>
       <div className="min-h-full">
-        <div className="bg-blue-600 pb-32">
-          <nav className="bg-blue-600 border-b border-blue-300 border-opacity-25 lg:border-none">
+        <div className="bg-[#6fa8dd] pb-32">
+          <nav className="bg-[#0b5394] border-b border-blue-300 border-opacity-25 lg:border-none">
             <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8">
               <div className="relative h-16 flex items-center justify-between lg:border-b lg:border-blue-400 lg:border-opacity-25">
                 <div className="px-2 flex items-center lg:px-0">
@@ -43,8 +43,8 @@ export default function DashboardLayout({
                           href={item.href}
                           className={
                             item.current
-                              ? 'bg-blue-700 text-white rounded-md py-2 px-3 text-sm font-medium'
-                              : 'text-white hover:bg-blue-500 hover:bg-opacity-75 rounded-md py-2 px-3 text-sm font-medium'
+                              ? 'bg-[#6fa8dd] text-white rounded-md py-2 px-3 text-sm font-medium'
+                              : 'text-white hover:bg-[#6fa8dd] hover:bg-opacity-75 rounded-md py-2 px-3 text-sm font-medium'
                           }
                           aria-current={item.current ? 'page' : undefined}
                         >
