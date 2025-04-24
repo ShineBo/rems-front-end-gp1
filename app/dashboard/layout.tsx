@@ -26,8 +26,8 @@ export default function DashboardLayout({
 
   return (
     <div>
-      <div className="min-h-full">
-        <div className="bg-[#6fa8dd] pb-32">
+      <div className="bg-[#6fa8dd] min-h-screen">
+        <div className="pb-32">
           <nav className="bg-[#0b5394] border-b border-blue-300 border-opacity-25 lg:border-none">
             <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8">
               <div className="relative h-16 flex items-center justify-between lg:border-b lg:border-blue-400 lg:border-opacity-25">
