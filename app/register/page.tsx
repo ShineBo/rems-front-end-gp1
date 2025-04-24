@@ -5,6 +5,7 @@ import { useRef, useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
+import { compressImage } from "../imageUtils";
 
 export default function Register() {
   const [userType, setUserType] = useState<"buyer" | "dealer">("buyer");
@@ -25,6 +26,7 @@ export default function Register() {
   const [showPassword, setShowPassword] = useState(false);
   const [showPassword2, setShowPassword2] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isCompressing, setIsCompressing] = useState(false);
 
   useEffect(() => {
     // Redirect if already logged in
@@ -53,17 +55,35 @@ export default function Register() {
     }
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setFormData((prev) => ({
-          ...prev,
-          profilePhoto: reader.result as string,
-        }));
-      };
-      reader.readAsDataURL(file);
+      try {
+        setIsCompressing(true);
+        
+        // Calculate file size in MB
+        const fileSizeMB = file.size / (1024 * 1024);
+        
+        // Only compress if larger than 1MB
+        let processedFile = file;
+        if (fileSizeMB > 1) {
+          // Compress to ensure it's under 9MB (leaving some buffer)
+          processedFile = await compressImage(file, 9);
+        }
+        
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setFormData((prev) => ({
+            ...prev,
+            profilePhoto: reader.result as string,
+          }));
+          setIsCompressing(false);
+        };
+        reader.readAsDataURL(processedFile);
+      } catch (error) {
+        console.error("Error processing image:", error);
+        setIsCompressing(false);
+      }
     }
   };
 
@@ -323,8 +343,21 @@ export default function Register() {
                     accept="image/*"
                     onChange={handleFileChange}
                     ref={fileInputRef}
+                    disabled={isCompressing}
                     className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm text-gray-800"
                   />
+                  {isCompressing && (
+                    <p className="text-blue-500 text-sm mt-1">Compressing image...</p>
+                  )}
+                  {formData.profilePhoto && (
+                    <div className="mt-2">
+                      <img
+                        src={formData.profilePhoto}
+                        alt="Profile preview"
+                        className="h-20 w-20 object-cover rounded-full"
+                      />
+                    </div>
+                  )}
                   <button
                     type="button"
                     onClick={() => {
@@ -333,7 +366,7 @@ export default function Register() {
                         fileInputRef.current.value = ""; // 👈 this clears the file input visually
                       }
                     }}
-                    className="block text-sm font-medium text-blue-700 hover:underline"
+                    className="block text-sm font-medium text-blue-700 hover:underline mt-1"
                   >
                     Clear
                   </button>
@@ -343,10 +376,10 @@ export default function Register() {
               <div>
                 <button
                   type="submit"
-                  disabled={loading || !passwordsMatch}
+                  disabled={loading || !passwordsMatch || isCompressing}
                   className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
                 >
-                  {loading ? "Registering..." : "Register"}
+                  {loading ? "Registering..." : isCompressing ? "Processing image..." : "Register"}
                 </button>
               </div>
             </form>

@@ -1,12 +1,13 @@
 'use client';
 
-import { useState, FormEvent } from 'react';
+import { useState, FormEvent, ChangeEvent } from 'react';
+import { compressImage, fileToBuffer } from '../imageUtils';
 
 type Property = {
   propertyID?: number;
   propertyTitle: string;
   propertyType: string;
-  propertyImages: string | null;
+  propertyImages: Buffer | string | null;
   description: string;
   price: number;
   location: string;
@@ -36,6 +37,15 @@ export default function PropertyForm({ initialData, dealerID, onSubmit, onCancel
   );
   
   const [errors, setErrors] = useState<Partial<Record<keyof Property, string>>>({});
+  const [previewImage, setPreviewImage] = useState<string | null>(
+    initialData?.propertyImages ? 
+      (typeof initialData.propertyImages === 'string' ? 
+        initialData.propertyImages : 
+        URL.createObjectURL(new Blob([initialData.propertyImages as Buffer], { type: 'image/jpeg' }))
+      ) : null
+  );
+  const [isCompressing, setIsCompressing] = useState(false);
+  const [imageFile, setImageFile] = useState<File | null>(null);
   
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -50,6 +60,39 @@ export default function PropertyForm({ initialData, dealerID, onSubmit, onCancel
         ...prev,
         [name]: undefined
       }));
+    }
+  };
+
+  const handleImageChange = async (e: ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      const file = e.target.files[0];
+      
+      try {
+        setIsCompressing(true);
+        
+        // Store the file for later use during form submission
+        setImageFile(file);
+        
+        // Create a preview URL for the original image
+        const previewUrl = URL.createObjectURL(file);
+        setPreviewImage(previewUrl);
+        
+        // Clear error if there was one
+        if (errors.propertyImages) {
+          setErrors(prev => ({
+            ...prev,
+            propertyImages: undefined
+          }));
+        }
+      } catch (error) {
+        console.error('Error processing image:', error);
+        setErrors(prev => ({
+          ...prev,
+          propertyImages: 'Failed to process image. Please try a different file.'
+        }));
+      } finally {
+        setIsCompressing(false);
+      }
     }
   };
   
@@ -84,11 +127,52 @@ export default function PropertyForm({ initialData, dealerID, onSubmit, onCancel
     return Object.keys(newErrors).length === 0;
   };
   
-  const handleSubmit = (e: FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     
     if (validateForm()) {
-      onSubmit(formData);
+      // Create a copy of the form data for submission
+      const submissionData = { ...formData };
+      
+      // Process the image if we have a new one
+      if (imageFile) {
+        try {
+          setIsCompressing(true);
+          
+          // Calculate file size in MB
+          const fileSizeMB = imageFile.size / (1024 * 1024);
+          
+          // Only compress if larger than 1MB
+          let processedFile = imageFile;
+          if (fileSizeMB > 1) {
+            // Compress to ensure it's under 9MB (leaving some buffer)
+            processedFile = await compressImage(imageFile, 9);
+          }
+          
+          // Convert the file to a base64 string instead of a Buffer
+          // This ensures consistent serialization
+          const base64Image = await new Promise<string>((resolve) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result as string);
+            reader.readAsDataURL(processedFile);
+          });
+          
+          // Set the image as a base64 string
+          submissionData.propertyImages = base64Image;
+        } catch (error) {
+          console.error('Error processing image for submission:', error);
+          setErrors(prev => ({
+            ...prev,
+            propertyImages: 'Failed to process image for submission. Please try again.'
+          }));
+          return;
+        } finally {
+          setIsCompressing(false);
+        }
+      }
+      
+      // Submit the data
+      onSubmit(submissionData);
     }
   };
 
@@ -129,6 +213,37 @@ export default function PropertyForm({ initialData, dealerID, onSubmit, onCancel
         />
         {errors.propertyType && (
           <p className="text-red-500 text-sm mt-1">{errors.propertyType}</p>
+        )}
+      </div>
+      
+      <div className="mb-4">
+        <label className="block text-gray-700 font-medium mb-2" htmlFor="propertyImages">
+          Property Images
+        </label>
+        <input
+          type="file"
+          id="propertyImages"
+          name="propertyImages"
+          accept="image/*"
+          onChange={handleImageChange}
+          disabled={isCompressing}
+          className={`w-full p-2 border rounded ${errors.propertyImages ? 'border-red-500' : 'border-gray-300'}`}
+        />
+        {isCompressing && (
+          <p className="text-blue-500 text-sm mt-1">Processing image...</p>
+        )}
+        {errors.propertyImages && (
+          <p className="text-red-500 text-sm mt-1">{errors.propertyImages}</p>
+        )}
+        {previewImage && (
+          <div className="mt-2">
+            <p className="text-sm text-gray-600 mb-1">Preview:</p>
+            <img 
+              src={previewImage} 
+              alt="Property preview" 
+              className="w-full max-w-md h-auto object-contain border rounded"
+            />
+          </div>
         )}
       </div>
       
@@ -217,7 +332,8 @@ export default function PropertyForm({ initialData, dealerID, onSubmit, onCancel
         </button>
         <button
           type="submit"
-          className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+          disabled={isCompressing}
+          className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
         >
           {initialData ? 'Update Property' : 'Add Property'}
         </button>

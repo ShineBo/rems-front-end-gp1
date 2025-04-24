@@ -42,46 +42,58 @@ export default function Profile() {
   const fetchUserDetails = async () => {
     setPageLoading(true);
     try {
-      const endpoint = user.role === "buyer" ? `/buyer/${user.id}` : `/dealer/${user.id}`;
+      const endpoint =
+        user.role === "buyer" ? `/buyer/${user.id}` : `/dealer/${user.id}`;
       const response = await api.get(endpoint);
       const userData = response.data;
-  
-      // Improved and simpler handling of profile photo data
+
+      // Improved and consistent handling of profile photo data
       let photoData = null;
-      
+
       // If there's a profile photo in the response
       if (userData.profilePhoto) {
         // If it's already a string (URL or Base64), use it directly
         if (typeof userData.profilePhoto === "string") {
           photoData = userData.profilePhoto;
-        } 
-        // If it's a Buffer or Array data
-        else if (userData.profilePhoto.data) {
+        }
+        // If it's a Buffer or Array data (from either buyer or dealer)
+        else if (
+          userData.profilePhoto.data ||
+          userData.profilePhoto.type === "Buffer"
+        ) {
           try {
             // Convert to Base64
             let base64String;
-            
-            // If it's an array of numbers
-            if (Array.isArray(userData.profilePhoto.data)) {
-              const uint8Array = new Uint8Array(userData.profilePhoto.data);
-              const blob = new Blob([uint8Array], { type: 'image/jpeg' });
+
+            // If it's an array of numbers (Buffer data from DB)
+            if (
+              Array.isArray(userData.profilePhoto.data) ||
+              (userData.profilePhoto.type === "Buffer" &&
+                Array.isArray(userData.profilePhoto))
+            ) {
+              const dataArray =
+                userData.profilePhoto.data || userData.profilePhoto;
+              const uint8Array = new Uint8Array(dataArray);
+              const blob = new Blob([uint8Array], { type: "image/jpeg" });
               base64String = await new Promise<string>((resolve) => {
                 const reader = new FileReader();
                 reader.onloadend = () => resolve(reader.result as string);
                 reader.readAsDataURL(blob);
               });
-            } 
+            }
             // If it's already encoded somehow
-            else if (typeof userData.profilePhoto.data === 'string') {
+            else if (typeof userData.profilePhoto.data === "string") {
               // Check if it's already a base64 string
-              if (userData.profilePhoto.data.startsWith('data:image')) {
+              if (userData.profilePhoto.data.startsWith("data:image")) {
                 base64String = userData.profilePhoto.data;
               } else {
                 // Try to convert to base64
-                base64String = `data:image/jpeg;base64,${btoa(userData.profilePhoto.data)}`;
+                base64String = `data:image/jpeg;base64,${btoa(
+                  userData.profilePhoto.data
+                )}`;
               }
             }
-            
+
             photoData = base64String;
           } catch (err) {
             console.error("Error processing profile photo:", err);
@@ -90,17 +102,18 @@ export default function Profile() {
           }
         }
       }
-  
+
       // Initialize profile data with fetched user data
       const updatedProfileData = {
-        name: user.role === "buyer" ? userData.buyerName : userData.businessName,
+        name:
+          user.role === "buyer" ? userData.buyerName : userData.businessName,
         email: userData.email,
         phoneNumber: userData.phoneNumber || "",
         businessName: user.role === "dealer" ? userData.businessName : "",
         licenseNumber: user.role === "dealer" ? userData.licenseNumber : "",
         profilePhoto: photoData,
       };
-  
+
       setProfileData(updatedProfileData);
       setInitialData(updatedProfileData);
     } catch (error) {
@@ -117,21 +130,22 @@ export default function Profile() {
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      setProfileImageFile(file);
       setProfileData({
         ...profileData,
-        profilePhoto: URL.createObjectURL(e.target.files[0]),
+        profilePhoto: URL.createObjectURL(file),
       });
     }
   };
 
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
-  
+
     try {
       const payload: any = {};
-  
+
       // Handle name update
       if (user.role === "buyer") {
         if (profileData.name !== initialData.name) {
@@ -145,7 +159,7 @@ export default function Profile() {
           payload.licenseNumber = profileData.licenseNumber;
         }
       }
-  
+
       // Handle phone number - ONLY include it if it has changed
       // This avoids triggering the "already in use" check on the backend
       if (profileData.phoneNumber !== initialData.phoneNumber) {
@@ -157,7 +171,7 @@ export default function Profile() {
           return;
         }
       }
-  
+
       // Handle profile photo
       if (profileImageFile) {
         // Convert the file to base64 for API submission
@@ -166,15 +180,15 @@ export default function Profile() {
           reader.onloadend = () => {
             // Split to get just the base64 part without the MIME prefix
             const result = reader.result as string;
-            const base64 = result.split(',')[1];
+            const base64 = result.split(",")[1];
             resolve(base64);
           };
           reader.readAsDataURL(profileImageFile);
         });
-        
+
         payload.profilePhoto = base64String;
       }
-  
+
       // Only proceed if there's something meaningful to update
       if (Object.keys(payload).length === 0) {
         toast("No changes to update");
@@ -182,25 +196,26 @@ export default function Profile() {
         setIsEditing(false);
         return;
       }
-  
-      const endpoint = user.role === "buyer" ? `/buyer/${user.id}` : `/dealer/${user.id}`;
+
+      const endpoint =
+        user.role === "buyer" ? `/buyer/${user.id}` : `/dealer/${user.id}`;
       await api.patch(endpoint, payload);
-  
+
       if (profileData.name !== initialData.name) {
         updateUserInfo({ ...user, name: profileData.name });
       }
-  
+
       toast.success("Profile updated successfully");
       setIsEditing(false);
-      
+
       // Clean up any object URLs to prevent memory leaks
-      if (profileImageFile && profileData.profilePhoto?.startsWith('blob:')) {
+      if (profileImageFile && profileData.profilePhoto?.startsWith("blob:")) {
         URL.revokeObjectURL(profileData.profilePhoto);
       }
-      
+
       // Reset the file state
       setProfileImageFile(null);
-      
+
       // Refetch user details to get the updated profile
       fetchUserDetails();
     } catch (error) {
@@ -214,7 +229,7 @@ export default function Profile() {
   // Clean up object URLs when component unmounts
   useEffect(() => {
     return () => {
-      if (profileData.profilePhoto?.startsWith('blob:')) {
+      if (profileData.profilePhoto?.startsWith("blob:")) {
         URL.revokeObjectURL(profileData.profilePhoto);
       }
     };
@@ -384,7 +399,10 @@ export default function Profile() {
                         type="button"
                         onClick={() => {
                           // Cleanup any created object URLs
-                          if (profileImageFile && profileData.profilePhoto?.startsWith('blob:')) {
+                          if (
+                            profileImageFile &&
+                            profileData.profilePhoto?.startsWith("blob:")
+                          ) {
                             URL.revokeObjectURL(profileData.profilePhoto);
                           }
                           setProfileImageFile(null);

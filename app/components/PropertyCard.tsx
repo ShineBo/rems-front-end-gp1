@@ -1,15 +1,12 @@
-
-// /app/components/PropertyCard.tsx
 'use client';
 
-import { useState } from 'react';
-import Image from 'next/image';
+import { useState, useEffect } from 'react';
 
 type Property = {
   propertyID: number;
   propertyTitle: string;
   propertyType: string;
-  propertyImages: string | null;
+  propertyImages: string | Buffer | { data: number[] | string } | null;
   description: string;
   price: number;
   location: string;
@@ -33,6 +30,96 @@ type PropertyCardProps = {
 
 export default function PropertyCard({ property, isDealer = false, onEdit, onDelete }: PropertyCardProps) {
   const [showDetails, setShowDetails] = useState(false);
+  const [processedImageUrl, setProcessedImageUrl] = useState<string | null>(null);
+  const [imageError, setImageError] = useState(false);
+  
+  // Process the image on component mount or property change
+  useEffect(() => {
+    const processImage = async () => {
+      if (!property.propertyImages) {
+        setProcessedImageUrl(null);
+        return;
+      }
+
+      try {
+        let imageUrl: string | null = null;
+        
+        // Case 1: It's already a string URL or base64
+        if (typeof property.propertyImages === 'string') {
+          // Check if it's already a data URL (base64) or a regular URL
+          if (property.propertyImages.startsWith('data:') || 
+              property.propertyImages.startsWith('http')) {
+            imageUrl = property.propertyImages;
+          } else {
+            // Try to interpret as base64 without prefix
+            try {
+              imageUrl = `data:image/jpeg;base64,${property.propertyImages}`;
+            } catch (err) {
+              console.error("Error interpreting string as base64:", err);
+              imageUrl = null;
+            }
+          }
+        }
+        // Case 2: It's a Buffer object with data property (from server)
+        else if (typeof property.propertyImages === 'object') {
+          // Handle Buffer or object with data property
+          const data = property.propertyImages.data || property.propertyImages;
+          
+          // Check if data is undefined or contains "[object Object]" serialized as numbers
+          if (!data || (Array.isArray(data) && 
+              data.join(',') === "91,111,98,106,101,99,116,32,79,98,106,101,99,116,93")) {
+            console.error("Invalid image data");
+            setImageError(true);
+            return;
+          }
+          
+          // If it's an array of numbers (valid image data)
+          if (Array.isArray(data)) {
+            // Convert number array to Uint8Array then to blob
+            const uint8Array = new Uint8Array(data);
+            const blob = new Blob([uint8Array], { type: 'image/jpeg' });
+            imageUrl = URL.createObjectURL(blob);
+          }
+          // If it's a string
+          else if (typeof data === 'string') {
+            // Check if it's a base64 string
+            if (data.startsWith('data:')) {
+              imageUrl = data;
+            } else {
+              // Try to convert to base64
+              try {
+                // In case it's binary data stored as a string
+                const bytes = new Uint8Array(data.length);
+                for (let i = 0; i < data.length; i++) {
+                  bytes[i] = data.charCodeAt(i);
+                }
+                const blob = new Blob([bytes], { type: 'image/jpeg' });
+                imageUrl = URL.createObjectURL(blob);
+              } catch (err) {
+                console.error("Error converting string to image:", err);
+                imageUrl = null;
+              }
+            }
+          }
+        }
+        
+        setProcessedImageUrl(imageUrl);
+      } catch (err) {
+        console.error("Error processing property image:", err);
+        setImageError(true);
+        setProcessedImageUrl(null);
+      }
+    };
+    
+    processImage();
+    
+    // Cleanup function to handle any created object URLs
+    return () => {
+      if (processedImageUrl?.startsWith('blob:')) {
+        URL.revokeObjectURL(processedImageUrl);
+      }
+    };
+  }, [property.propertyImages]);
   
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat('en-US', {
@@ -45,12 +132,12 @@ export default function PropertyCard({ property, isDealer = false, onEdit, onDel
   return (
     <div className="bg-white shadow-lg rounded-lg overflow-hidden mb-6 border border-gray-200">
       <div className="relative h-48 bg-gray-200">
-        {property.propertyImages ? (
-          <Image
-            src={property.propertyImages}
+        {processedImageUrl && !imageError ? (
+          <img 
+            src={processedImageUrl}
             alt={property.propertyTitle}
-            fill
-            className="object-cover"
+            className="object-cover w-full h-full"
+            onError={() => setImageError(true)}
           />
         ) : (
           <div className="absolute inset-0 flex items-center justify-center text-gray-400">
