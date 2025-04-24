@@ -178,7 +178,7 @@ export default function PropertyForm({ initialData, dealerID, onSubmit, onCancel
 
   return (
     <form onSubmit={handleSubmit} className="bg-white p-6 rounded-lg shadow-md">
-      <h2 className="text-xl font-bold mb-4">
+      <h2 className="text-xl text-black font-bold mb-4">
         {initialData ? 'Edit Property' : 'Add New Property'}
       </h2>
       
@@ -192,7 +192,7 @@ export default function PropertyForm({ initialData, dealerID, onSubmit, onCancel
           name="propertyTitle"
           value={formData.propertyTitle}
           onChange={handleChange}
-          className={`w-full p-2 border rounded ${errors.propertyTitle ? 'border-red-500' : 'border-gray-300'}`}
+          className={`w-full text-black p-2 border rounded ${errors.propertyTitle ? 'border-red-500' : 'border-gray-300'}`}
         />
         {errors.propertyTitle && (
           <p className="text-red-500 text-sm mt-1">{errors.propertyTitle}</p>
@@ -209,7 +209,7 @@ export default function PropertyForm({ initialData, dealerID, onSubmit, onCancel
           name="propertyType"
           value={formData.propertyType}
           onChange={handleChange}
-          className={`w-full p-2 border rounded ${errors.propertyType ? 'border-red-500' : 'border-gray-300'}`}
+          className={`w-full text-black p-2 border rounded ${errors.propertyType ? 'border-red-500' : 'border-gray-300'}`}
         />
         {errors.propertyType && (
           <p className="text-red-500 text-sm mt-1">{errors.propertyType}</p>
@@ -227,7 +227,7 @@ export default function PropertyForm({ initialData, dealerID, onSubmit, onCancel
           accept="image/*"
           onChange={handleImageChange}
           disabled={isCompressing}
-          className={`w-full p-2 border rounded ${errors.propertyImages ? 'border-red-500' : 'border-gray-300'}`}
+          className={`w-full text-black p-2 border rounded ${errors.propertyImages ? 'border-red-500' : 'border-gray-300'}`}
         />
         {isCompressing && (
           <p className="text-blue-500 text-sm mt-1">Processing image...</p>
@@ -257,7 +257,7 @@ export default function PropertyForm({ initialData, dealerID, onSubmit, onCancel
           value={formData.description}
           onChange={handleChange}
           rows={4}
-          className={`w-full p-2 border rounded ${errors.description ? 'border-red-500' : 'border-gray-300'}`}
+          className={`w-full text-black p-2 border rounded ${errors.description ? 'border-red-500' : 'border-gray-300'}`}
         />
         {errors.description && (
           <p className="text-red-500 text-sm mt-1">{errors.description}</p>
@@ -277,7 +277,7 @@ export default function PropertyForm({ initialData, dealerID, onSubmit, onCancel
             onChange={handleChange}
             min="0"
             step="1000"
-            className={`w-full p-2 border rounded ${errors.price ? 'border-red-500' : 'border-gray-300'}`}
+            className={`w-full text-green-700 p-2 border rounded ${errors.price ? 'border-red-500' : 'border-gray-300'}`}
           />
           {errors.price && (
             <p className="text-red-500 text-sm mt-1">{errors.price}</p>
@@ -294,7 +294,7 @@ export default function PropertyForm({ initialData, dealerID, onSubmit, onCancel
             name="location"
             value={formData.location}
             onChange={handleChange}
-            className={`w-full p-2 border rounded ${errors.location ? 'border-red-500' : 'border-gray-300'}`}
+            className={`w-full text-black p-2 border rounded ${errors.location ? 'border-red-500' : 'border-gray-300'}`}
           />
           {errors.location && (
             <p className="text-red-500 text-sm mt-1">{errors.location}</p>
@@ -311,7 +311,7 @@ export default function PropertyForm({ initialData, dealerID, onSubmit, onCancel
           name="status"
           value={formData.status}
           onChange={handleChange}
-          className={`w-full p-2 border rounded ${errors.status ? 'border-red-500' : 'border-gray-300'}`}
+          className={`w-full text-black p-2 border rounded ${errors.status ? 'border-red-500' : 'border-gray-300'}`}
         >
           <option value="Available">Available</option>
           <option value="Pending">Pending</option>
