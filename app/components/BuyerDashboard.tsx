@@ -106,7 +106,7 @@ export default function BuyerDashboard() {
           <select
             value={filter}
             onChange={(e) => setFilter(e.target.value)}
-            className="px-3 py-2 border border-gray-300 rounded-md shadow-sm"
+            className="px-3 text-black py-2 border border-gray-300 rounded-md shadow-sm"
           >
             <option value="all">All Properties</option>
             <option value="available">Available Only</option>
@@ -116,7 +116,7 @@ export default function BuyerDashboard() {
           <select
             value={sortBy}
             onChange={(e) => setSortBy(e.target.value)}
-            className="px-3 py-2 border border-gray-300 rounded-md shadow-sm"
+            className="px-3 text-black py-2 border border-gray-300 rounded-md shadow-sm"
           >
             <option value="newest">Newest First</option>
             <option value="oldest">Oldest First</option>
